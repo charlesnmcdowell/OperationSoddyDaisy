@@ -4,6 +4,10 @@
 **Objective:** Verify the new menu-driven interface and logic traps.
 
 ## How to Run
+**Option A: Desktop Shortcut**
+1. Double-click the "Smart Hands" icon on your Desktop.
+
+**Option B: Manual Start**
 1. Open Terminal.
 2. Navigate to project folder: `cd Documents\OperationSoddyDaisy`
 3. Run the game: `.\play.bat`
