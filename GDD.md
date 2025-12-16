@@ -1,112 +1,80 @@
-# GAME DESIGN DOCUMENT: SMART HANDS
+REFACTOR INSTRUCTION: SWITCH TO MENU-DRIVEN UI
+Context: We are updating the "Smart Hands" Python game engine. Currently, it uses a text parser (typing verbs). We need to refactor the entire input loop to use a Numbered Multiple Choice System.
 
-**Version:** 1.0 (MVP - Text Engine)
-**Studio:** Deliverator Games
-**Project Codename:** Operation Soddy-Daisy
+Objective: Replace input("> ") text parsing with a dynamic menu system where the player selects an action by typing a number (1, 2, 3...).
 
-## I. HIGH CONCEPT
+I. NEW UI LAYOUT (Standard Format)
+For every "Game State" or "Location," the console must print:
 
-Smart Hands is a high-stakes "Field Deployment" simulator where the player assumes the role of a remote operative (The Deliverator). The goal is to execute a complex technical installation in a hostile environment (a site with no internet/tools) under strict time pressure.
+The Narrative/Status: (e.g., "You are at Home Base...")
 
-Unlike chaotic party games, the core tension here comes from competence. The horror isn't a monster; it's forgetting a serial number driver or missing a client signature.
+The Options List: A generated list of valid actions for that specific state.
 
-## II. GAMEPLAY MECHANICS
+The Prompt: Select Option [1-3]:
 
-### A. The Core Loop
-1. **Prep (Base):** Validate loadout. (Failure here = Mission Fail).
-2. **Deploy (Travel):** Manage strict ETA windows (Simulated via time deduction).
-3. **Execute (Site):** Physical installation (Rack & Stack) + Software Config (Console/Putty).
-4. **Exfil (Closeout):** The "Boss Fight" against documentation.
+II. PHASE-SPECIFIC MENU LOGIC
+Phase 0: Home Base
+Narrative: "LOCATION: HOME BASE (MURFREESBORO). TIME: MONDAY, 20:00. Verify your Tech Deck." Menu Options:
 
-### B. The Loadout System (Inventory)
-- **Critical Items:** Laptop (Win 11), Console Cable, Mobile Hotspot.
-- **Hardware:** Monitor, drills, cage nuts, 5x Cat6 Cables.
-- **Armor:** PPE (Vest, Boots, Hard Hat).
-- **Mechanic:** "Hard Lock" - If the player arrives on-site without a Critical Item, the mission ends instantly.
+[ACTION] Check Laptop Drivers (Sets drivers_verified = True)
 
-### C. Mission Phases (Level Design)
-- **Phase 0:** Pre-Deployment Stress Test (Driver verification at home).
-- **Phase 1:** Infiltration (GPS Check-in & Bridge Call from the Parking Lot).
-- **Phase 2:** The Grind (De-install legacy gear $\rightarrow$ Install new gear).
-- **Phase 3:** Logistics (FedEx run).
-- **Phase 4:** Documentation (Uploads & Sign-off).
+[ACTION] Pack All Gear (Sets inventory_full = True)
 
-## III. WIN / LOSS CONDITIONS
+[TRAVEL] Go to Sleep / Depart for Site (Triggers Phase 1 Transition)
 
-### Victory Conditions
-To clear the level, the player must have:
-- Hardware installed and confirmed "Green" by the Bridge.
-- Old gear logged and "shipped" (Player has the tracking number).
-- Sign-off sheet physically signed by the Site Contact.
-- All documentation uploaded.
+Logic Check (The "Lazy Tech" Trap):
 
-### Game Over States
-- **The Driver Error:** Player fails to verify USB-to-Serial drivers before leaving Base. Result: Cannot console into the switch.
-- **The Ghost Error:** Player leaves the site without recording Serial Numbers of old gear. Result: Cannot complete shipping manifest.
-- **The Abandonment:** Player exits the location without the client signature. Result: Pay withheld.
+If player selects 3 without doing 1, store a hidden flag driver_failure = True. Do NOT stop them. Let them fail later.
 
-## IV. TECHNICAL SPECIFICATIONS
+If player selects 3 without doing 2, block progress: "You cannot leave without your tools."
 
-- **Target Platform:** PC (Command-Line Interface / Terminal).
-- **Engine:** Python (Text-based).
-- **Visual Style:** "Terminal Aesthetic" (Green text on Black background). Monospaced fonts.
-- **Input:** Text Parser (Verb-Noun).
+Phase 1: The Parking Lot
+Narrative: "LOCATION: SITE 404. TIME: 08:40. You are in the car." Menu Options:
 
-## V. COMMAND SYNTAX (CONTROLS)
+[ACTION] Join Bridge Call (Sets bridge_comms = True)
 
-The parser should recognize these specific "Engineering Verbs."
+[ACTION] Check Inventory
 
-### 1. Diagnostic (Looking)
-- `SCAN [TARGET]` (e.g., SCAN RACK, SCAN LAPTOP, SCAN ROOM)
-- `CHECK [STATUS]` (e.g., CHECK TIME, CHECK DRIVER, CHECK SIGNAL)
-- `LIST INVENTORY`
+[TRAVEL] Enter Building (Triggers Phase 2 Transition)
 
-### 2. Action (Doing)
-- `DEPLOY [ITEM]` (e.g., DEPLOY HOTSPOT, DEPLOY MONITOR)
-- `CONNECT [CABLE] TO [PORT]` (e.g., CONNECT CONSOLE TO SWITCH)
-- `TYPE [COMMAND]` (e.g., TYPE IPCONFIG)
+Logic Check:
 
-### 3. Logistics (Bureaucracy)
-- `MOVE [LOCATION]` (e.g., MOVE TO SERVER_ROOM)
-- `LOG [ITEM]` (e.g., LOG SERIAL_NUMBER)
-- `SIGN [DOC]` (e.g., SIGN PAPERWORK)
+If player selects 3 without doing 1, trigger specific failure text: "You walked in without calling the Bridge. They are angry. Mission Failed."
 
-## VI. NARRATIVE ASSETS (STRING DATABASE)
+Phase 2: The Server Room
+Narrative: "LOCATION: MDF ROOM. Loud fans. Tangled cables." Menu Options:
 
-Use these exact strings for game output to maintain the "Industrial" tone.
+[ACTION] Scan Rack (Reads descriptions)
 
-- **LOC_HOME_BASE:**
-  "LOCATION: HOME BASE (MURFREESBORO).
-  TIME: MONDAY, 20:00.
-  STATUS: You are at your desk. The gear is piled on the floor.
-  OBJECTIVE: Verify the 'Tech Deck' before you sleep. If the drivers fail tomorrow, you don't get paid."
+[ACTION] De-Install Legacy Hardware
 
-- **LOC_PARKING_LOT:**
-  "LOCATION: SITE 404 - SODDY-DAISY, TN.
-  TIME: 08:40 EST.
-  STATUS: You are sitting in your rental car. The engine is ticking cool. Outside, the warehouse is a grey monolith against a grey sky.
-  OBJECTIVE: Establish comms with The Bridge before 08:45."
+[ACTION] Rack & Stack New Gear (Requires drivers_verified == True)
 
-- **MSG_DRIVER_SUCCESS:**
-  "SYSTEM CHECK...
-  [OK] USB-to-Serial Controller detected on COM3.
-  [OK] Baud Rate: 9600.
-  READY FOR CONNECTION."
+[ACTION] Connect Console (The Moment of Truth)
 
-- **MSG_DRIVER_FAIL:**
-  "SYSTEM CHECK...
-  [ERROR] DEVICE NOT RECOGNIZED.
-  [FATAL] You cannot interface with the client hardware.
-  MISSION FAILED: The Client has noticed your delay."
+Logic Check (The Reveal):
 
-- **MSG_HOTSPOT_CONNECT:**
-  "DEPLOYING HOTSPOT...
-  SIGNAL: LTE (2 Bars).
-  VPN TUNNEL: ESTABLISHED.
-  You are now on the corporate network."
+When selecting 4:
 
-- **NPC_BRIDGE_INTRO:**
-  "BRIDGE: 'Tech, this is Dispatch. Do I have you on the line? We are on a hard start. Confirm when you are inside the facility.'"
+If drivers_verified == True: Success message ("Console Connected via COM3").
 
+If drivers_verified == False: GAME OVER. ("Error: Driver not found. You are stuck on site with no way to work. You are fired.")
 
+Phase 3: Logistics & Closeout
+Narrative: "Job done. Cleanup time." Menu Options:
+
+[ACTION] Log Serial Numbers (Sets serials_logged = True)
+
+[ACTION] Ship Gear via FedEx
+
+[ACTION] Get Client Signature
+
+[FINISH] Depart Site
+
+III. TECHNICAL REQUIREMENTS
+Loop: The game should loop and clear the screen (optional) between choices so the menu is always fresh.
+
+Error Handling: If the user types "5" when there are only 3 options, print "Invalid Selection" and show the menu again.
+
+State Persistence: Ensure boolean flags (drivers, inventory, comms) carry over between menu selections.
 
