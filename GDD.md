@@ -1,80 +1,122 @@
-REFACTOR INSTRUCTION: SWITCH TO MENU-DRIVEN UI
-Context: We are updating the "Smart Hands" Python game engine. Currently, it uses a text parser (typing verbs). We need to refactor the entire input loop to use a Numbered Multiple Choice System.
+GAME DESIGN DOCUMENT: SMART HANDS (Refactor v2.0)
+Project: Operation Soddy-Daisy
+Type: Text-Based Field Deployment Simulator
+Engine: Python (Console/Terminal)
+UI Style: Numbered Menu System (BIOS/Terminal Aesthetic)
 
-Objective: Replace input("> ") text parsing with a dynamic menu system where the player selects an action by typing a number (1, 2, 3...).
+I. DEVELOPMENT GOAL
+Refactor the existing Python script to use a Menu-Driven Interface (Selecting 1, 2, 3...) instead of a text parser. The game must track specific boolean flags to determine if the player succeeds or fails at critical "Gate" moments.
 
-I. NEW UI LAYOUT (Standard Format)
-For every "Game State" or "Location," the console must print:
+II. GLOBAL TECHNICAL REQUIREMENTS
+The Loop: The game runs in a while loop.
 
-The Narrative/Status: (e.g., "You are at Home Base...")
+Screen Clearing: At the start of every new Phase or Menu refresh, clear the console (os.system('cls' or 'clear')) so the interface looks like a clean HUD.
 
-The Options List: A generated list of valid actions for that specific state.
+Input Handling: Accept integers only. If the user types invalid input, reprint the menu.
 
-The Prompt: Select Option [1-3]:
+State Management: Track the following boolean flags globally:
 
-II. PHASE-SPECIFIC MENU LOGIC
-Phase 0: Home Base
-Narrative: "LOCATION: HOME BASE (MURFREESBORO). TIME: MONDAY, 20:00. Verify your Tech Deck." Menu Options:
+inventory_packed (Default: False)
 
-[ACTION] Check Laptop Drivers (Sets drivers_verified = True)
+drivers_verified (Default: False)
 
-[ACTION] Pack All Gear (Sets inventory_full = True)
+bridge_called (Default: False)
 
-[TRAVEL] Go to Sleep / Depart for Site (Triggers Phase 1 Transition)
+serials_logged (Default: False)
 
-Logic Check (The "Lazy Tech" Trap):
+III. PHASE LOGIC & NARRATIVE SCRIPT
+PHASE 0: HOME BASE (The Setup)
+Narrative:
 
-If player selects 3 without doing 1, store a hidden flag driver_failure = True. Do NOT stop them. Let them fail later.
+"LOCATION: HOME BASE (MURFREESBORO). TIME: MONDAY, 20:00. STATUS: You are at your desk. The gear is piled on the floor. OBJECTIVE: Verify the 'Tech Deck' before you sleep."
 
-If player selects 3 without doing 2, block progress: "You cannot leave without your tools."
+Menu Options:
 
-Phase 1: The Parking Lot
-Narrative: "LOCATION: SITE 404. TIME: 08:40. You are in the car." Menu Options:
+[ACTION] Check Laptop Drivers
 
-[ACTION] Join Bridge Call (Sets bridge_comms = True)
+Logic: Set drivers_verified = True. Print: [SYSTEM] USB-to-Serial Controller Active on COM3.
+
+[ACTION] Pack All Gear
+
+Logic: Set inventory_packed = True. Print: [SYSTEM] Laptop, Console Cable, and Tools secured.
+
+[TRAVEL] Go to Sleep / Depart for Site
+
+Logic:
+
+IF inventory_packed is False: BLOCK PROGRESS. Print: "You cannot leave without your tools."
+
+IF inventory_packed is True: TRANSITION to Phase 1. (Note: Allow player to leave even if drivers_verified is False. This is a trap.)
+
+PHASE 1: THE INFILTRATION (Parking Lot)
+Narrative:
+
+"LOCATION: SITE 404 - SODDY-DAISY, TN. TIME: 08:40 EST. STATUS: You are sitting in your rental car. The engine is ticking cool. OBJECTIVE: Establish comms with The Bridge before entering."
+
+Menu Options:
+
+[ACTION] Join Bridge Call
+
+Logic: Set bridge_called = True. Print: [BRIDGE] "Dispatch here. We have you checked in. You are green to enter."
 
 [ACTION] Check Inventory
 
-[TRAVEL] Enter Building (Triggers Phase 2 Transition)
+Logic: Print list of items.
 
-Logic Check:
+[TRAVEL] Enter Building
 
-If player selects 3 without doing 1, trigger specific failure text: "You walked in without calling the Bridge. They are angry. Mission Failed."
+Logic:
 
-Phase 2: The Server Room
-Narrative: "LOCATION: MDF ROOM. Loud fans. Tangled cables." Menu Options:
+IF bridge_called is False: GAME OVER. Print: "MISSION FAILED. You walked on site without checking in. The client cancelled the ticket."
 
-[ACTION] Scan Rack (Reads descriptions)
+IF bridge_called is True: TRANSITION to Phase 2.
+
+PHASE 2: THE EXECUTION (Server Room)
+Narrative:
+
+"LOCATION: MDF ROOM. STATUS: Loud fans. Tangled cables. The air smells like ozone. OBJECTIVE: Swap the hardware."
+
+Menu Options:
+
+[ACTION] Scan Rack
+
+Logic: Print: "It is a 2-Post Relay Rack. The cabling is a mess."
 
 [ACTION] De-Install Legacy Hardware
 
-[ACTION] Rack & Stack New Gear (Requires drivers_verified == True)
+Logic: Print: "Old device removed."
+
+[ACTION] Rack & Stack New Gear
+
+Logic: Print: "New hardware mounted. Power connected."
 
 [ACTION] Connect Console (The Moment of Truth)
 
-Logic Check (The Reveal):
+Logic:
 
-When selecting 4:
+IF drivers_verified is True: SUCCESS. Print: "Console Connected. Configuring Switch..." -> TRANSITION to Phase 3.
 
-If drivers_verified == True: Success message ("Console Connected via COM3").
+IF drivers_verified is False: GAME OVER. Print: "CRITICAL FAILURE. Your laptop does not recognize the console cable. You forgot to check the drivers at home. You cannot complete the work. You are fired."
 
-If drivers_verified == False: GAME OVER. ("Error: Driver not found. You are stuck on site with no way to work. You are fired.")
+PHASE 3: LOGISTICS (The Paperwork)
+Narrative:
 
-Phase 3: Logistics & Closeout
-Narrative: "Job done. Cleanup time." Menu Options:
+"LOCATION: SITE 404 - LOADING DOCK. STATUS: The technical work is done. The bureaucratic work remains."
 
-[ACTION] Log Serial Numbers (Sets serials_logged = True)
+Menu Options:
+
+[ACTION] Log Serial Numbers
+
+Logic: Set serials_logged = True. Print: "Serial numbers recorded in spreadsheet."
 
 [ACTION] Ship Gear via FedEx
 
-[ACTION] Get Client Signature
+Logic: Print: "Package dropped off. Tracking number saved."
 
-[FINISH] Depart Site
+[FINISH] Close Ticket
 
-III. TECHNICAL REQUIREMENTS
-Loop: The game should loop and clear the screen (optional) between choices so the menu is always fresh.
+Logic:
 
-Error Handling: If the user types "5" when there are only 3 options, print "Invalid Selection" and show the menu again.
+IF serials_logged is False: GAME OVER. Print: "MISSION FAILED. You shipped the old gear without recording the serials. The equipment is lost. The client is refusing to pay."
 
-State Persistence: Ensure boolean flags (drivers, inventory, comms) carry over between menu selections.
-
+IF serials_logged is True: VICTORY. Print: "MISSION COMPLETE. Good work, Deliverator. Payment authorized."

@@ -12,7 +12,8 @@ from game.engine import GameEngine
 class TestSmartHandsQA(unittest.TestCase):
     def setUp(self):
         self.game = GameEngine()
-        # Suppress stdout during tests to keep output clean, unless we want to assert on it
+        # Suppress stdout and screen clearing
+        self.game.clear_screen = lambda: None
         self.held_output = StringIO()
         sys.stdout = self.held_output
 
@@ -23,96 +24,84 @@ class TestSmartHandsQA(unittest.TestCase):
         """Test Scenario A: The Happy Path (Victory)"""
         game = self.game
         
-        # Override quit_game to prevent sys.exit killing the test
-        game.quit_game = lambda: setattr(game, 'is_running', False)
+        # Override quit_game to prevent sys.exit
+        game.quit_game = lambda pause=False: setattr(game, 'is_running', False)
 
         # Phase 0: Home Base
-        game.process_input("1") # Check Drivers
-        self.assertTrue(game.state.drivers_verified, "Drivers should be verified")
+        game.handle_home_base("1") # Check Drivers
+        self.assertTrue(game.state.drivers_verified)
         
-        game.process_input("2") # Pack Gear
-        self.assertTrue(game.state.inventory_full, "Inventory should be full")
+        game.handle_home_base("2") # Pack Gear
+        self.assertTrue(game.state.inventory_packed)
         
-        game.process_input("3") # Depart
-        self.assertEqual(game.state.location, "PARKING_LOT", "Should be at Parking Lot")
+        game.handle_home_base("3") # Depart
+        self.assertEqual(game.state.location, "PARKING_LOT")
 
         # Phase 1: Parking Lot
-        game.process_input("1") # Bridge Call
-        self.assertTrue(game.state.bridge_comms, "Bridge comms should be established")
+        game.handle_parking_lot("1") # Bridge Call
+        self.assertTrue(game.state.bridge_called)
         
-        game.process_input("3") # Enter Building
-        self.assertEqual(game.state.location, "SERVER_ROOM", "Should be at Server Room")
+        game.handle_parking_lot("3") # Enter Building
+        self.assertEqual(game.state.location, "SERVER_ROOM")
 
         # Phase 2: Server Room
-        game.process_input("2") # De-install
-        self.assertEqual(game.state.rack_status, "EMPTY", "Rack should be empty")
-        self.assertIn("LEGACY_SWITCH", game.state.inventory, "Should have legacy switch")
+        game.handle_server_room("2") # De-install
+        game.handle_server_room("3") # Rack New
         
-        game.process_input("3") # Rack New
-        self.assertEqual(game.state.rack_status, "NEW", "Rack should have new gear")
-        
-        game.process_input("4") # Connect Console
-        self.assertTrue(game.state.switch_configured, "Switch should be configured")
-        self.assertEqual(game.state.location, "LOGISTICS", "Should be at Logistics")
+        game.handle_server_room("4") # Connect Console
+        self.assertEqual(game.state.location, "LOGISTICS")
 
         # Phase 3: Logistics
-        game.process_input("1") # Log Serial
-        self.assertTrue(game.state.serials_logged, "Serials should be logged")
+        game.handle_logistics("1") # Log Serial
+        self.assertTrue(game.state.serials_logged)
         
-        game.process_input("2") # Ship
-        self.assertTrue(game.state.legacy_shipped, "Gear should be shipped")
+        game.handle_logistics("2") # Ship
         
-        game.process_input("3") # Sign
-        self.assertTrue(game.state.paperwork_signed, "Paperwork should be signed")
+        # 3. Finish (Victory)
+        game.handle_logistics("3")
+        self.assertFalse(game.is_running)
         
-        # 4. Depart (Victory)
-        game.process_input("4")
-        self.assertFalse(game.is_running, "Game should have ended (Victory)")
-        
-        # Verify victory message in output
+        # Verify output contains victory text
         output = self.held_output.getvalue()
         self.assertIn("MISSION COMPLETE", output)
 
     def test_scenario_b_lazy_tech_trap(self):
         """Test Scenario B: The 'Lazy Tech' Trap (Game Over)"""
         game = self.game
-        game.quit_game = lambda: setattr(game, 'is_running', False)
+        game.quit_game = lambda pause=False: setattr(game, 'is_running', False)
 
         # Home Base: Skip Drivers (1)
-        game.process_input("2") # Pack
-        game.process_input("3") # Depart
-        
-        self.assertTrue(game.state.driver_failure, "Trap flag should be set")
+        game.handle_home_base("2") # Pack
+        game.handle_home_base("3") # Depart
         self.assertEqual(game.state.location, "PARKING_LOT")
 
         # Parking Lot: Normal
-        game.process_input("1") # Bridge Call
-        game.process_input("3") # Enter
+        game.handle_parking_lot("1") # Bridge Call
+        game.handle_parking_lot("3") # Enter
         
         # Server Room: Reveal
-        game.process_input("4") # Try to connect console
+        game.handle_server_room("4") # Try to connect console
         
-        self.assertFalse(game.is_running, "Game should have ended (Failure)")
+        self.assertFalse(game.is_running)
         output = self.held_output.getvalue()
-        self.assertIn("Driver not found", output)
+        self.assertIn("CRITICAL FAILURE", output)
 
     def test_scenario_c_rogue_entry(self):
         """Test Scenario C: The 'Rogue Entry' (Game Over)"""
         game = self.game
-        game.quit_game = lambda: setattr(game, 'is_running', False)
+        game.quit_game = lambda pause=False: setattr(game, 'is_running', False)
 
         # Home Base: Normal
-        game.process_input("1")
-        game.process_input("2")
-        game.process_input("3")
+        game.handle_home_base("1")
+        game.handle_home_base("2")
+        game.handle_home_base("3")
         
         # Parking Lot: Skip Bridge Call (1)
-        game.process_input("3") # Enter Building
+        game.handle_parking_lot("3") # Enter Building
         
-        self.assertFalse(game.is_running, "Game should have ended (Failure)")
+        self.assertFalse(game.is_running)
         output = self.held_output.getvalue()
-        self.assertIn("Mission Failed", output)
+        self.assertIn("MISSION FAILED", output)
 
 if __name__ == '__main__':
     unittest.main()
-
